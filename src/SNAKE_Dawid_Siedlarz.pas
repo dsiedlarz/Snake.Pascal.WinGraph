@@ -1,0 +1,1199 @@
+program SNAKE_Dawid_Siedlarz;
+
+uses wincrt,wingraph,winmouse, sysutils, DOS;
+
+  const
+    windowX = 900;
+    windowY = 600;
+    spowolnienie = 0;
+    promien =5;
+    ruch = promien*2;
+    szerokoscR = 10;
+
+  type
+
+    wskWaz = ^waz;
+    waz=record
+      X:integer;
+      Y:integer;
+      next:wskWaz;
+      prev:wskWaz;
+    end;
+
+    wazL = record
+      head:wskWaz;
+      tail:wskWaz;
+      licznik:integer;
+    end;
+
+    owoc = record
+      X:integer;
+      Y:integer;
+      Z:boolean;
+      W:integer;
+    end;
+
+    mysz = record
+      X: integer;
+      Y: integer;
+      Z: boolean;
+    end;
+
+    ramka = record
+      X1: integer;
+      Y1: integer;
+      X2: integer;
+      Y2: integer;
+    end;
+
+    bonus= record
+      X:integer;
+      Y:integer;
+      Z:boolean;
+      W:integer;
+    end;
+
+    tab=array[1..4]of boolean;
+
+var headSnake: wskWaz;
+    L,com1,com2:wazL;
+    kierunek,kierunek1,kierunek2: tab;
+    malina,k1,k2,k3,k4,k5,k6,k7,k8,k9: owoc;
+    pozycjaM: mysz;
+    rama: ramka;
+    B:bonus;
+    i,m :integer;
+
+ procedure initL(var L:wazL);
+begin
+     L.head:=nil;
+     L.tail:=nil;
+     L.licznik:=0;
+end;
+
+procedure initKierunek(var kierunek: tab);
+begin
+     kierunek[1]:=false; kierunek[2]:=false; kierunek[3]:=true; kierunek[4]:=false;
+end;
+
+procedure initWaz(var L:wazL);
+var nowy: wskWaz;
+begin
+     new(nowy);
+  //   nowy^.X:=getmaxx div 2;
+  //   nowy^.Y:=getmaxy div 2;
+        nowy^.X:=450;
+        nowy^.Y:=270;
+     nowy^.prev:=NIL;
+     nowy^.next:=L.head;
+     L.head:=nowy;
+     inc(L.licznik);
+     if nowy^.next <> nil then nowy^.next^.prev:=nowy
+     else L.tail:=nowy;
+end;
+
+procedure LoadBMP();
+var f:file; bitmap:pointer; size:longint;
+begin
+  {$I-} Assign(f,'..\pliki\background1.bmp'); Reset(f,1); {$I+}
+  if (IOResult <> 0) then Exit;
+  size:=FileSize(f);
+  GetMem(bitmap,size);
+  BlockRead(f,bitmap^,size);
+  Close(f);
+  PutImage(0,0,bitmap^,NormalPut);
+  FreeMem(bitmap);
+end;
+
+procedure czytaj(var kierunek:tab);
+var k:char;
+begin
+     if not(KeyPressed) then Exit;
+     k:=ReadKey;
+     case k of
+     #0: begin
+              //strzalki
+              k:=ReadKey;
+              case k of
+              #72:begin
+                         if kierunek[2]=true then  else
+                         begin
+                         kierunek[1]:=true; kierunek[2]:=false; kierunek[3]:=false; kierunek[4]:=false;
+                         end;
+                    end;
+              #80:begin
+                         if kierunek[1]=true then  else
+                         begin
+                         kierunek[1]:=false; kierunek[2]:=true; kierunek[3]:=false; kierunek[4]:=false;
+                         end;
+                    end;
+              #75:begin
+                         if kierunek[4]=true then  else
+                         begin
+                         kierunek[1]:=false; kierunek[2]:=false; kierunek[3]:=true; kierunek[4]:=false;
+                         end;
+                    end;
+              #77:begin
+                         if kierunek[3]=true then  else
+                         begin
+                         kierunek[1]:=false; kierunek[2]:=false; kierunek[3]:=false; kierunek[4]:=true;
+                         end;
+                    end;
+             end;
+          end;
+     //WSAD
+     #119:begin
+               if kierunek[2]=true then  else
+               begin
+               kierunek[1]:=true; kierunek[2]:=false; kierunek[3]:=false; kierunek[4]:=false;
+               end;
+          end;
+     #115:begin
+               if kierunek[1]=true then  else
+               begin
+               kierunek[1]:=false; kierunek[2]:=true; kierunek[3]:=false; kierunek[4]:=false;
+               end;
+          end;
+     #97:begin
+              if kierunek[4]=true then  else
+              begin
+              kierunek[1]:=false; kierunek[2]:=false; kierunek[3]:=true; kierunek[4]:=false;
+              end;
+         end;
+     #100:begin
+               if kierunek[3]=true then  else
+               begin
+               kierunek[1]:=false; kierunek[2]:=false; kierunek[3]:=false; kierunek[4]:=true;
+               end;
+          end;
+     end;
+end;
+
+procedure update(var L: wazL; kierunek: tab);
+var x,y: integer;
+    p,e: wskWaz;
+begin
+      if kierunek[1]=true  then begin x:=0;  y:=-ruch; end;
+      if kierunek[2]=true  then begin x:=0;  y:=ruch;  end;
+      if kierunek[3]=true  then begin x:=-ruch; y:=0;  end;
+      if kierunek[4]=true  then begin x:=ruch;  y:=0;  end;
+
+      e:=L.head;
+      p:=L.tail;
+      while p<>e do
+      begin
+               p^.X:=p^.prev^.X;
+               p^.Y:=p^.prev^.Y;
+               p:=p^.prev;
+      end;
+      e^.X:=e^.X+x;
+      e^.Y:=e^.Y+y;
+      delay(spowolnienie);
+end;
+
+procedure initRamka(var rama:ramka);
+begin
+     rama.X1:=szerokoscR;
+     rama.Y1:=szerokoscR;
+     rama.X2:=getmaxx-szerokoscR;
+     rama.Y2:=getmaxy-60-szerokoscR;
+end;
+
+procedure rysRamka(var rama:ramka);
+var szerokosc: integer;
+begin
+     szerokosc:=szerokoscR;
+     setFillStyle(solidFill, white);
+     bar(0,0,getmaxx,szerokosc);
+     bar(0,0,szerokosc,getmaxy-60);
+     bar(getmaxx-szerokosc,0,getmaxX,getmaxy-60);
+     bar(0,getmaxy-szerokosc-60,getmaxx,getmaxy-60);
+
+     rama.X1:=szerokosc;
+     rama.Y1:=szerokosc;
+     rama.X2:=getmaxx-szerokosc;
+     rama.Y2:=getmaxy-60-szerokosc;
+end;
+
+procedure dajOwoc(var malina: owoc);
+begin
+     if malina.Z=false then
+     begin
+          randomize;
+           malina.X:=random(84)*10+szerokoscR+20;
+           malina.Y:=random(50)*10+szerokoscR+20;
+
+          malina.Z:=true;
+
+
+          if (m=4) or (m=8) then malina.W:=2;
+          if m=12 then malina.W:=4;
+          if m=16 then m:=0;
+           if (m<>4) and (m<>8) and (m<>12) and (m<>16)  then malina.W:=1 ;
+          inc(m);
+     end;
+
+end;
+
+procedure dajKare(var malina: owoc);
+begin
+     if malina.Z=false then
+     begin
+          randomize;
+           malina.X:=random(84)*10+szerokoscR+20;
+           malina.Y:=random(50)*10+szerokoscR+20;
+
+          malina.Z:=true;
+
+     end;
+
+end;
+
+ function kolizja (L: wazL;com2:wazL; rama: ramka):boolean;
+var p,e: wskWaz;
+begin
+    p:=L.head;
+    p:=p^.next;
+    e:=L.head;
+
+    kolizja:=false;
+
+    while p<>NIL do
+    begin
+         if (p^.X=e^.X) and (p^.Y=e^.Y) then kolizja:=true;
+         if (p^.X<rama.X1) or (p^.X>rama.X2) or (p^.Y>rama.Y2) or (p^.Y<rama.Y1) then kolizja:=true;
+         p:=p^.next;
+    end;
+    p:=com2.head;
+    p:=p^.next;
+    e:=L.head;
+    while p<>NIL do
+    begin
+         if (p^.X=e^.X) and (p^.Y=e^.Y) then kolizja:=true;
+         p:=p^.next;
+    end;
+end;
+
+function kolizja1 (L: wazL; rama: ramka):boolean;
+
+var p,e: wskWaz;
+begin
+   p:=L.head;
+   p:=p^.next;
+   e:=L.head;
+
+   kolizja1:=false;
+
+   while p<>NIL do
+   begin
+        if (p^.X=e^.X) and (p^.Y=e^.Y) then kolizja1:=true;
+        p:=p^.next;
+
+end;
+end;
+
+procedure teleportacja(var L:wazL; rama:ramka);
+ var p:wskWaz;
+ begin
+    p:=L.head;
+    while p<>NIL do
+    begin
+         if p^.X<=szerokoscR              then p^.X:=getmaxx-2*szerokoscR;
+         if p^.X>=getmaxx-szerokoscR      then p^.X:=2*szerokoscR;
+         if p^.Y<=szerokoscR              then p^.Y:=getmaxy-60-2*szerokoscR;
+         if p^.Y>=getmaxy-60-szerokoscR   then p^.Y:=2*szerokoscR;
+         p:=p^.next;
+    end;
+
+
+
+ end;
+
+procedure teleportacja2(var L:wazL; x:integer; y:integer;c:integer;d:integer);
+var p:wskWaz;
+begin
+   p:=L.head;
+   while p<>NIL do
+   begin
+        if (p^.X=x) and (p^.Y=y)
+        then begin
+        p^.X:=c;  p^.Y:=d;
+
+        end;
+         p:=p^.next;
+        end;
+
+
+     setFillStyle(solidFill, white);
+     bar(x-4,y-4,x+4,y+4);
+
+end;
+
+function obiad(L: wazL;var malina: owoc):boolean;
+var p: wskWaz;
+    k: integer;
+begin
+     k:= promien+1;
+     obiad:=false;
+     p:=L.head;
+     if  (malina.X<p^.X+k)
+     and (malina.X>p^.X-k)
+     and (malina.Y<p^.Y+k)
+     and (malina.Y>p^.Y-k)then
+        begin
+             obiad:=true;
+             malina.Z:=false;
+        end;
+end;
+
+function obiadK(L: wazL;var malina: owoc):boolean;
+var p: wskWaz;
+    k: integer;
+begin
+     k:= promien+1;
+     obiadK:=false;
+     p:=L.head;
+     if  (malina.X<p^.X+k)
+     and (malina.X>p^.X-k)
+     and (malina.Y<p^.Y+k)
+     and (malina.Y>p^.Y-k)then
+        begin
+             obiadK:=true;
+             malina.Z:=false;
+        end;
+end;
+
+function obiadB(L: wazL;var malina: bonus):boolean;
+var p: wskWaz;
+    k: integer;
+begin
+     k:= promien+1;
+     obiadB:=false;
+     p:=L.head;
+     if  (malina.X<p^.X+k)
+     and (malina.X>p^.X-k)
+     and (malina.Y<p^.Y+k)
+     and (malina.Y>p^.Y-k)then
+        begin
+             L.licznik:=L.licznik+3;
+             obiadB:=true;
+             malina.Z:=false;
+        end;
+end;
+
+procedure powieksz(var L: wazL;malina:owoc);
+var
+   nowy: wskWaz;
+begin
+   new(nowy);
+   nowy^.next:=NIL;
+   nowy^.prev:=L.tail;
+   nowy^.X:=nowy^.prev^.X;
+   nowy^.Y:=nowy^.prev^.Y;
+   L.tail:=nowy;
+     L.licznik:=L.licznik+malina.W;
+
+   if nowy^.prev <> NIL then nowy^.prev^.next:=nowy
+   else L.head:=nowy;
+end;
+
+ procedure rysujW(L: wazL;k:integer);
+var p: wskWaz;
+begin
+     p:=L.head;
+    if k=1 then  setfillstyle(SolidFill,blue)
+     else  setfillstyle(SolidFill,red);
+     Fillellipse(p^.X,p^.Y,promien-5,promien-5);
+     while p<>NIL do
+     begin
+
+          Fillellipse(p^.X,p^.Y,promien,promien);
+          p:=p^.next;
+     end;
+
+end;
+
+procedure dajBonus(var B: bonus; rama: ramka;k:integer);
+var Z: boolean;
+begin
+   //  if B.Z=false then
+     begin
+
+          randomize;
+          B.X:=random(84)*10+szerokoscR+20;
+          B.Y:=random(50)*10+szerokoscR+20;
+          B.Z:=true;
+          Z:=false;
+
+                 B.W:=k;
+                B.Z:=true;
+
+
+
+     end;
+end   ;
+
+procedure rysujB(var B: bonus);
+begin
+   if B.Z=true then begin
+        if B.W>50 then setfillstyle(SolidFill,yellow);
+        if B.W=50 then setfillstyle(SolidFill,orange);
+        if B.W<50 then setfillstyle(SolidFill,pink) ;
+     Fillellipse(B.X,B.Y,promien ,promien );
+     end;
+
+end;
+
+procedure rysujM(malina: owoc);
+begin
+     if malina.Z=true then begin
+     if malina.W=1 then begin
+     setfillstyle(SolidFill,red);
+     Fillellipse(malina.X,malina.Y,promien div 2,promien div 2);
+     end;
+     if malina.W=2 then begin
+     setfillstyle(SolidFill,red);
+     Fillellipse(malina.X,malina.Y,promien-1,promien-1 );
+     end;
+      if malina.W=4 then begin
+     setfillstyle(SolidFill,red);
+     Fillellipse(malina.X,malina.Y,promien+2 ,promien+2 );
+     end;
+
+
+     end;
+end;
+
+procedure rysujK(malina: owoc);
+begin
+
+     setfillstyle(SolidFill,brown);
+     Fillellipse(malina.X,malina.Y,promien ,promien );
+
+
+end;
+
+procedure initGrafika();       //inicjalizacja
+var
+   gd,gm: smallint;
+begin
+     setWindowSize(windowX,windowY);
+     gd:=SVGA; gm:=mCustom;
+     InitGraph(gd,gm,'SNAKE_Dawid_Siedlarz');
+end;
+
+procedure gdzieMysz(var pozycjaM: mysz);
+var m:MouseEventType;
+begin
+     pozycjaM.X:=getmousex;
+     pozycjaM.Y:=getmousey;
+     if not(PollMouseEvent(m)) then Exit;
+     getMouseEvent(m);
+     with m do
+     case action of
+     MouseActionDown: begin
+                           case buttons of
+                           MouseLeftButton: pozycjaM.Z:=true;
+                           end;
+                      end;
+     MouseActionUp: begin
+                           case buttons of
+                           MouseLeftButton: pozycjaM.Z:=true;
+                           end;
+                      end;
+     end;
+end;
+
+function menu(var myszka: mysz):integer;
+
+var x,y,px,py: integer;
+begin
+     x:=getmaxx div 2;
+     y:=getmaxy div 2;
+     px:=83;
+     py:=20;
+     loadBMP();
+     setcolor(white);
+     setTextStyle(MSSansSerifFont,0,80);
+     outTextXY(x-175+px, y-160+py, 'MENU');
+     setTextStyle(MSSansSerifFont,0,40);
+     outTextXY(x-320+px, y-70+py, 'Gra Normalna');
+     outTextXY(x-180+px, y-20+py, 'PC vs PC');
+     outTextXY(x-180+px, y+30+py, 'GRACZ vs PC');
+     outTextXY(x-30+px, y-70+py, 'POZIOM 2');
+     //zmiana koloru po najechaniu //
+     if (pozycjaM.x>x-320+px) and (pozycjaM.x<x-113+px) and
+        (pozycjaM.y>y-70+py)  and (pozycjaM.y<y-39+py) then
+        begin
+             setcolor(blue);
+             outTextXY(x-320+px, y-70+py, 'Gra Normalna');
+        end;
+       if (pozycjaM.x>x-30+px) and (pozycjaM.x<x+183+px) and
+        (pozycjaM.y>y-70+py)  and (pozycjaM.y<y-39+py) then
+        begin
+             setcolor(blue);
+             outTextXY(x-30+px, y-70+py, 'POZIOM 2');
+        end;
+
+     if (pozycjaM.x>x-180+px) and (pozycjaM.x<x+33+px) and
+        (pozycjaM.y>y-12+py)  and (pozycjaM.y<y+11+py) then
+        begin
+             setcolor(blue);
+             outTextXY(x-180+px, y-20+py, 'PC vs PC');
+        end;
+       if (pozycjaM.x>x-180+px) and (pozycjaM.x<x+33+px) and
+        (pozycjaM.y>y+38+py)  and (pozycjaM.y<y+61+py) then
+        begin
+             setcolor(blue);
+             outTextXY(x-180+px, y+30+py, 'GRACZ vs PC');
+        end;
+
+
+     setcolor(white);
+
+     if pozycjaM.Z=true then begin
+                                 //Gra Normalna
+                                 if (pozycjaM.X>x-320+px) and (pozycjaM.X<x-113+px) and
+                                    (pozycjaM.Y>y-70+py)  and (pozycjaM.Y<y-39+py) then
+                                    begin
+                                         menu:=1;
+                                    end;
+                                 //PC vs PC
+                                 if (pozycjaM.X>x-180+px) and (pozycjaM.X<x+33+px) and
+                                    (pozycjaM.Y>y-12+py)  and (pozycjaM.Y<y+11+py) then
+                                    begin
+                                         menu:=2;
+                                         //gracz vs pc
+                                    end;
+                                  if (pozycjaM.X>x-180+px) and (pozycjaM.X<x+33+px) and
+                                    (pozycjaM.Y>y+38+py)  and (pozycjaM.Y<y+61+py) then
+                                    begin
+                                         menu:=3;
+                                    end;
+
+                                  if (pozycjaM.X>x-30+px) and (pozycjaM.X<x+183+px) and
+                                    (pozycjaM.Y>y-70+py)  and (pozycjaM.Y<y-39+py) then
+                                    begin
+                                         menu:=4;
+                                    end;
+
+                            end;
+     pozycjaM.z:=false;
+end;
+
+function czywolna(var com1:wazL;var com2:wazL;kier:integer;var rama:ramka):boolean;
+var x,y,i:integer;
+   p,q:wskWaz;
+begin
+     i:=0;
+     x:=com1.head^.X;
+     y:=com1.head^.Y;
+     p:=com2.head;
+     q:=com1.head;
+      case kier of
+      1:begin
+           y:=y-ruch;
+      end;
+      2:begin
+           y:=y+ruch;
+      end;
+      3:begin
+          x:=x-ruch;
+      end;
+      4:begin
+          x:=x+ruch;
+      end;
+      end;
+
+       if (x<=rama.X1) or (x>=rama.X2) or (y>=rama.Y2) or (y<=rama.Y1) then
+          BEGIN
+               czywolna:=false;
+               i:=1;
+       END;
+
+        while p<>NIL do
+             begin
+                if (p^.X=x) and (p^.Y=y) then
+                   begin
+                          czywolna:=false;
+                        i:=1;
+                     end;
+
+                p:=p^.next;
+                end;
+
+
+     while q<>NIL do
+             begin
+                if (q^.X=x) and (q^.Y=y) then begin
+                                             czywolna:=false;
+                                                     i:=1;
+
+                                                    end;
+
+                q:=q^.next;
+                end;
+     if i=0 then czywolna:=true;
+
+end;
+
+procedure gdzieisc(var com1:wazL;var com2:wazL;var malina:owoc;var kierunek:tab;var rama:ramka);
+begin
+  if   (com1.head^.X<malina.X) and (czywolna(com1,com2,4,rama)=true) then
+     begin
+         if kierunek[3]=true then  else
+               begin
+               kierunek[1]:=false; kierunek[2]:=false; kierunek[3]:=false; kierunek[4]:=true;
+               exit;
+               end
+     end;
+   if   (com1.head^.X>malina.X) and (czywolna(com1,com2,3,rama)=true) then
+     begin
+        if kierunek[4]=true then  else
+               begin
+               kierunek[1]:=false; kierunek[2]:=false; kierunek[3]:=true; kierunek[4]:=false;
+               exit;
+               end
+     end;
+    if   (com1.head^.Y<malina.Y) and (czywolna(com1,com2,2,rama)=true) then
+     begin
+        if kierunek[1]=true then  else
+               begin
+               kierunek[1]:=false; kierunek[2]:=true; kierunek[3]:=false; kierunek[4]:=false;
+               exit;
+               end
+     end;
+     if   (com1.head^.Y>malina.Y) and (czywolna(com1,com2,1,rama)=true) then
+     begin
+         if kierunek[2]=true then  else
+               begin
+               kierunek[1]:=true; kierunek[2]:=false; kierunek[3]:=false; kierunek[4]:=false;
+               exit;
+               end
+     end;
+
+  if (czywolna(com1,com2,3,rama)=true) then
+  begin
+         if kierunek[3]=true then  else
+               begin
+               kierunek[1]:=false; kierunek[2]:=false; kierunek[3]:=false; kierunek[4]:=true;
+               exit;
+               end;
+  end;
+   if (czywolna(com1,com2,4,rama)=true) then
+  begin
+         if kierunek[4]=true then  else
+               begin
+               kierunek[1]:=false; kierunek[2]:=false; kierunek[3]:=true; kierunek[4]:=false;
+               exit;
+               end;
+  end;
+    if (czywolna(com1,com2,2,rama)=true) then
+  begin
+         if kierunek[1]=true then  else
+               begin
+               kierunek[1]:=false; kierunek[2]:=true; kierunek[3]:=false; kierunek[4]:=false;
+               exit;
+               end
+  end;
+     if (czywolna(com1,com2,1,rama)=true) then
+  begin
+         if kierunek[2]=true then  else
+               begin
+               kierunek[1]:=true; kierunek[2]:=false; kierunek[3]:=false; kierunek[4]:=false;
+               exit;
+               end
+  end ;
+
+
+end;
+
+procedure highscore(cel:string;L:wazL);
+var plik:Text;
+    wynik:integer;
+
+begin
+    Assign(plik,cel);
+    Reset(plik);
+    readln(plik,wynik);
+    if L.licznik-5>wynik then
+    begin
+
+    Rewrite(plik);
+    Write(plik,inttostr(L.licznik-5))
+    end;
+    setColor(blue);
+   setTextStyle(MSSansSerifFont,0,10);
+
+   outTextXY(520, getmaxy-20, 'HIGHSCORE');
+   outTextXY(590, getmaxy-20, inttostr(wynik*10));
+   close(plik);
+end;
+
+procedure legenda;
+begin
+
+    setTextStyle(MSSansSerifFont,0,10);
+     setfillstyle(SolidFill,red) ;
+    Fillellipse(240, getmaxy-45,promien div 2 ,promien div 2 );
+    Fillellipse(240, getmaxy-31,promien -2 ,promien - 2 );
+    Fillellipse(240, getmaxy-14,promien +1 ,promien +1 );
+    outTextXY(260, getmaxy-50, '10pkt');
+    outTextXY(260, getmaxy-35, '20pkt');
+    outTextXY(260, getmaxy-20, '40pkt');
+    setfillstyle(SolidFill,pink) ;
+    Fillellipse(340, getmaxy-45,promien  ,promien );
+    setfillstyle(SolidFill,orange) ;
+    Fillellipse(340, getmaxy-31,promien  ,promien  );
+    setfillstyle(SolidFill,yellow) ;
+    Fillellipse(340, getmaxy-14,promien  ,promien  );
+    outTextXY(360, getmaxy-50, 'Bardzo Szybko');
+    outTextXY(360, getmaxy-35, 'Normalnie');
+    outTextXY(360, getmaxy-20, 'Wolno');
+
+     end;
+
+ procedure initKomputer(var com1:wazL;var com2:wazL;var kierunek1:tab;var kierunek2:tab);
+
+         var nowy,nowy2: wskWaz;
+         i:integer;
+begin
+     new(nowy);
+        nowy^.X:=200;
+        nowy^.Y:=100;
+     nowy^.prev:=NIL;
+     nowy^.next:=com1.head;
+     com1.head:=nowy;
+     inc(com1.licznik);
+     if nowy^.next <> nil then nowy^.next^.prev:=nowy
+     else com1.tail:=nowy;
+
+      new(nowy2);
+        nowy2^.X:=600;
+        nowy2^.Y:=350;
+     nowy2^.prev:=NIL;
+     nowy2^.next:=com1.head;
+     com2.head:=nowy2;
+     inc(com2.licznik);
+     if nowy2^.next <> nil then nowy2^.next^.prev:=nowy2
+     else com2.tail:=nowy2;
+
+      kierunek1[1]:=false; kierunek1[2]:=false; kierunek1[3]:=true; kierunek1[4]:=false;
+
+      kierunek2[1]:=false; kierunek2[2]:=false; kierunek2[3]:=false; kierunek2[4]:=true;
+
+
+        for i:=0 to 3 do powieksz(com1,malina);
+        for i:=0 to 3 do powieksz(com2,malina);
+ end;
+
+ procedure gracz(var L: wazL; var kierunek: tab; var malina: owoc; var rama: ramka;B:bonus);
+var a,x,y,i,c,k: integer;
+begin
+     m:=0;
+     k:=1;
+     B.Z:=false;
+     a:=50;
+     c:=50;
+     malina.W:=1;
+     initL(L);
+     initL(com1);
+     initKierunek(kierunek);
+     initWaz(L);
+     initRamka(rama);
+
+     for i:=0 to 3 do powieksz(L,malina);
+
+    repeat
+    clearDevice;
+    czytaj(kierunek);
+    update(L,kierunek);
+    kolizja(L,L,rama);
+    dajOwoc(malina);
+    if k=250 then dajBonus(B,rama,25);
+    if k=600 then dajBonus(B,rama,50);
+    if k=1200 then dajBonus(B,rama,75);
+    if k=1250 then k:=0;
+    inc(k);
+    if obiadB(L,B)=true then c:=B.W;
+    if obiad(L,malina)=true then powieksz(L,malina);
+    rysRamka(rama);
+    rysujW(L,1);
+    rysujM(malina);
+    rysujB(B);
+
+    setTextStyle(MSSansSerifFont,0,40);
+    outTextXY(10, getmaxy-45, 'PUNKTY: ');
+    outTextXY(160, getmaxy-45, inttostr(L.licznik*10-50));
+    legenda;
+    highscore('..\pliki\highscore1.txt',L);
+
+    if c=50 then delay(25);
+    if c=75 then delay(75);
+    UpdateGraph(UpdateNow);
+    delay(25);
+    UpdateGraph(UpdateOff);
+
+    if closeGraphRequest=true then closeGraph;
+
+    until Kolizja(L,L,rama)=true;
+
+    repeat
+    cleardevice();
+    x:=getmaxx div 2;
+    y:=getmaxy div 2;
+    setColor(red);
+    setTextStyle(MSSansSerifFont,0,40);
+    outTextXY(x-100, y-80, 'KONIEC GRY');
+    outTextXY(x-140, y-40, 'TWOJ WYNIK TO: ');
+
+    outTextXY(x-140+280, y-40, inttostr(L.licznik*10-50));
+    if closeGraphRequest=true then closeGraph;
+
+    UpdateGraph(UpdateNow);
+    delay(50);
+    UpdateGraph(UpdateOff);
+
+    until keypressed;
+end;
+
+procedure poziom2(var L: wazL; var kierunek: tab; var malina: owoc; var rama: ramka;B:bonus);
+const rozmiar =20;
+var a,x,y,i,c,k,e,f: integer;
+ //   tele:array[1..4,1..rozmiar]of integer;
+
+begin
+    m:=0;
+    k:=1;
+    B.Z:=false;
+    a:=50;
+    c:=50;
+    malina.W:=1;
+    initL(L);
+    {
+     randomize;
+     for e:=1 to rozmiar do
+     begin
+         for f:=1 to 2 do
+         begin
+             tele[f,e]:=random(80)*10+2*szerokoscR;
+         end;
+         for f:=3 to 4 do
+         begin
+             tele[f,e]:=random(80)*10+2*szerokoscR;
+         end;
+     end;
+      }
+    initKierunek(kierunek);
+    initWaz(L);
+    initRamka(rama);
+      L.head^.X:=400;
+    L.head^.Y:=400;
+   for i:=0 to 3 do powieksz(L,malina);
+
+   repeat
+   clearDevice;
+   czytaj(kierunek);
+   update(L,kierunek);
+   kolizja1(L,rama);
+   teleportacja(L,rama);
+   teleportacja2(L,100,100,720,400);
+    teleportacja2(L,200,100,600,360);
+     teleportacja2(L,300,100,120,100);
+      teleportacja2(L,400,100,800,400);
+       teleportacja2(L,500,100,60,80);
+        teleportacja2(L,600,100,800,60);
+        teleportacja2(L,700,100,60,490);
+         teleportacja2(L,100,400,800,400);
+          teleportacja2(L,200,400,800,40);
+           teleportacja2(L,300,400,300,460);
+            teleportacja2(L,400,400,440,260);
+             teleportacja2(L,500,400,800,300);
+              teleportacja2(L,600,400,800,400);
+               teleportacja2(L,700,400,100,60);
+                teleportacja2(L,200,300,800,40);
+                 teleportacja2(L,200,180,80,340);
+                  teleportacja2(L,600,300,900,400);
+
+   dajOwoc(malina);
+   if k=2 then dajKare(k1);
+   if k=3 then dajKare(k2);
+   if k=4 then dajKare(k3);
+   if k=5 then dajKare(k4);
+   if k=6 then dajKare(k5);
+   if k=7 then dajKare(k6);
+   if k=8 then dajKare(k7);
+   if k=9 then dajKare(k8);
+   if k=10 then dajKare(k9);
+   if k=250 then dajBonus(B,rama,25);
+   if k=600 then dajBonus(B,rama,50);
+   if k=1200 then dajBonus(B,rama,75);
+   if k=1250 then k:=0;
+   inc(k);
+   if obiadB(L,B)=true then c:=B.W;
+   if obiad(L,malina)=true then powieksz(L,malina);
+   rysRamka(rama);
+   rysujW(L,1);
+   rysujM(malina);
+   rysujB(B);
+   rysujK(k1);
+   rysujK(k2);
+   rysujK(k3);
+   rysujK(k4);
+   rysujK(k5);
+   rysujK(k6);
+   rysujK(k7);
+   rysujK(k8);
+   rysujK(k9);
+   setTextStyle(MSSansSerifFont,0,40);
+   outTextXY(10, getmaxy-45, 'PUNKTY: ');
+   outTextXY(160, getmaxy-45, inttostr(L.licznik*10-50));
+   legenda;
+   highscore('..\pliki\highscore2.txt',L);
+   outTextXY(520, getmaxy-50, 'Teleport');
+   setFillStyle(solidFill, white);
+    bar(500,getmaxy-50,508,getmaxy-42);
+   outTextXY(520, getmaxy-35, 'Zatruta jagoda');
+     setFillStyle(solidFill, brown);
+    Fillellipse(505,getmaxy-30,promien ,promien );
+   if c=50 then delay(25);
+   if c=75 then delay(75);
+   UpdateGraph(UpdateNow);
+   delay(25);
+   UpdateGraph(UpdateOff);
+
+   if closeGraphRequest=true then closeGraph;
+
+   until (kolizja1(L,rama)=true) or (obiadK(L,k1)=true)or (obiadK(L,k2)=true)
+   or (obiadK(L,k3)=true)or (obiadK(L,k4)=true);
+
+   repeat
+   cleardevice();
+   x:=getmaxx div 2;
+   y:=getmaxy div 2;
+   setColor(red);
+   setTextStyle(MSSansSerifFont,0,40);
+   outTextXY(x-100, y-80, 'KONIEC GRY');
+   outTextXY(x-140, y-40, 'TWOJ WYNIK TO: ');
+
+   outTextXY(x-140+280, y-40, inttostr(L.licznik*10-50));
+   if closeGraphRequest=true then closeGraph;
+
+   UpdateGraph(UpdateNow);
+   delay(50);
+   UpdateGraph(UpdateOff);
+
+   until keypressed;
+end;
+
+procedure komputer(var com1: wazL;var com2: wazL; var kierunek1: tab; var kierunek2: tab; var malina: owoc; var rama: ramka;B:bonus);
+var a,x,y,i,c,k: integer;
+begin
+     k:=1;
+     B.Z:=false;
+     a:=50;
+     c:=50;
+     malina.W:=1;
+      initL(com1);
+      initL(com2);
+
+    // initKomputer(com1,com2,kierunek1,kierunek2);
+     initKierunek(kierunek1);
+     initWaz(com1);
+     for i:=0 to 3 do powieksz(com1,malina);
+     initKierunek(kierunek2);
+     initWaz(com2);
+     com2.head^.X:=600;
+     com2.head^.Y:=100;
+
+     for i:=0 to 3 do powieksz(com2,malina);
+     initRamka(rama);
+
+    repeat
+    clearDevice;
+    gdzieisc(com1,com2,malina,kierunek1,rama);
+    update(com1,kierunek1);
+    gdzieisc(com2,com1,malina,kierunek2,rama);
+    update(com2,kierunek2);
+    kolizja(com1,com2,rama);
+    kolizja(com2,com1,rama);
+    dajOwoc(malina);
+    if k=250 then dajBonus(B,rama,25);
+    if k=600 then dajBonus(B,rama,50);
+    if k=1200 then dajBonus(B,rama,75);
+    if k=1250 then k:=0;
+    inc(k);
+    if obiadB(com1,B)=true then c:=B.W;
+    if obiadB(com2,B)=true then c:=B.W;
+    if obiad(com1,malina)=true then powieksz(com1,malina);
+
+    if obiad(com2,malina)=true then powieksz(com2,malina);
+    rysRamka(rama);
+    rysujW(com1,1);
+    rysujW(com2,2);
+    rysujM(malina);
+    rysujB(B);
+    setColor(blue);
+    setTextStyle(MSSansSerifFont,0,40);
+    outTextXY(10, getmaxy-45, 'PUNKTY: ');
+    outTextXY(160, getmaxy-45, inttostr(com1.licznik*10-50));
+    setColor(red);
+    setTextStyle(MSSansSerifFont,0,40);
+    outTextXY(getmaxx-300, getmaxy-45, 'PUNKTY: ');
+    outTextXY(getmaxx-140, getmaxy-45, inttostr(com2.licznik*10-50));
+    legenda;
+    if c=50 then delay(25);
+    if c=75 then delay(75);
+    UpdateGraph(UpdateNow);
+    delay(50);
+    UpdateGraph(UpdateOff);
+
+    if closeGraphRequest=true then closeGraph;
+
+    until (Kolizja(com1,com2,rama)=true) or (Kolizja(com2,com1,rama)=true);
+
+    repeat
+    loadBMP();
+    cleardevice();
+    x:=getmaxx div 2;
+    y:=getmaxy div 2-100;
+    setColor(green);
+    setTextStyle(MSSansSerifFont,0,40);
+    outTextXY(x-100, y-80, 'KONIEC GRY');
+    setColor(blue);
+    outTextXY(x-300, y-40, 'WYNIK NIEBIESKIEGO  TO: ');
+    outTextXY(x-200+480, y-40, inttostr(com1.licznik*10-50));
+    setColor(red);
+    outTextXY(x-300, y, 'WYNIK CZERWONEGO  TO: ');
+    outTextXY(x-200+480, y, inttostr(com2.licznik*10-50));
+
+
+    if closeGraphRequest=true then closeGraph;
+
+    UpdateGraph(UpdateNow);
+    delay(50);
+    UpdateGraph(UpdateOff);
+
+    until keypressed;
+end;
+
+
+procedure graczvspc(var com1: wazL;var com2: wazL; var kierunek1: tab; var kierunek2: tab; var malina: owoc; var rama: ramka;B:bonus);
+var a,x,y,i,c,k: integer;
+begin
+     k:=1;
+     B.Z:=false;
+     a:=50;
+     c:=50;
+     malina.W:=1;
+      initL(com1);
+      initL(com2);
+
+    // initKomputer(com1,com2,kierunek1,kierunek2);
+     initKierunek(kierunek1);
+     initWaz(com1);
+
+
+     for i:=0 to 3 do powieksz(com1,malina);
+
+
+     initKierunek(kierunek2);
+     initWaz(com2);
+     com2.head^.X:=600;
+     com2.head^.Y:=100;
+
+     for i:=0 to 3 do powieksz(com2,malina);
+     initRamka(rama);
+
+    repeat
+    clearDevice;
+    czytaj(kierunek1);
+    update(com1,kierunek1);
+    gdzieisc(com2,com1,malina,kierunek2,rama);
+     update(com2,kierunek2);
+    kolizja(com1,com2,rama);
+    kolizja(com2,com1,rama);
+    dajOwoc(malina);
+    if k=250 then dajBonus(B,rama,25);
+    if k=600 then dajBonus(B,rama,50);
+    if k=1200 then dajBonus(B,rama,75);
+    if k=1250 then k:=0;
+    inc(k);
+    if obiadB(com1,B)=true then c:=B.W;
+    if obiadB(com2,B)=true then c:=B.W;
+    if obiad(com1,malina)=true then powieksz(com1,malina);
+     if obiad(com2,malina)=true then powieksz(com2,malina);
+    rysRamka(rama);
+    rysujW(com1,1);
+    rysujW(com2,2);
+    rysujM(malina);
+    rysujB(B);
+    setColor(blue);
+    setTextStyle(MSSansSerifFont,0,40);
+    outTextXY(10, getmaxy-45, 'GRACZ: ');
+    outTextXY(160, getmaxy-45, inttostr(com1.licznik*10-50));
+    setColor(red);
+    setTextStyle(MSSansSerifFont,0,40);
+    outTextXY(getmaxx-260, getmaxy-45, 'COM: ');
+    outTextXY(getmaxx-140, getmaxy-45, inttostr(com2.licznik*10-50));
+    legenda;
+    highscore('..\pliki\highscore3.txt',com1);
+    if c=50 then delay(25);
+    if c=75 then delay(75);
+    UpdateGraph(UpdateNow);
+    delay(50);
+    UpdateGraph(UpdateOff);
+
+    if closeGraphRequest=true then closeGraph;
+
+    until (Kolizja(com1,com2,rama)=true) or (Kolizja(com2,com1,rama)=true);
+
+    repeat
+    loadBMP();
+    cleardevice();
+    x:=getmaxx div 2;
+    y:=getmaxy div 2-100;
+    setColor(green);
+    setTextStyle(MSSansSerifFont,0,40);
+    outTextXY(x-100, y-80, 'KONIEC GRY');
+    setColor(blue);
+    outTextXY(x-300, y-40, 'TWOJ WYNIK  TO: ');
+    outTextXY(x-200+480, y-40, inttostr(com1.licznik*10-50));
+    setColor(red);
+    outTextXY(x-300, y, 'WYNIK KOMPUTERA  TO: ');
+    outTextXY(x-200+480, y, inttostr(com2.licznik*10-50));
+
+
+    if closeGraphRequest=true then closeGraph;
+
+    UpdateGraph(UpdateNow);
+    delay(50);
+    UpdateGraph(UpdateOff);
+
+    until keypressed;
+end;
+
+
+
+
+begin
+
+   initGrafika();
+   repeat
+         clearDevice;
+         gdzieMysz(pozycjaM);
+         case menu(pozycjaM) of
+         1: gracz(L,kierunek,malina,rama,B);
+         2: komputer(com1,com2,kierunek1,kierunek2,malina,rama,B);
+         3: graczvspc(com1,com2,kierunek1,kierunek2,malina,rama,B);
+         4: poziom2(L,kierunek,malina,rama,B);
+         end;
+         UpdateGraph(UpdateNow);
+         delay(50);
+         UpdateGraph(UpdateOff);
+
+   until CloseGraphRequest;
+   CloseGraph;
+     readln;
+end.
+
